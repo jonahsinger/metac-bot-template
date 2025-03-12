@@ -72,12 +72,16 @@ class Q1TemplateBot(ForecastBot):
     async def run_research(self, question: MetaculusQuestion) -> str:
         async with self._concurrency_limiter:
             research = ""
+            if os.getenv("ASKNEWS_CLIENT_ID") and os.getenv("ASKNEWS_SECRET"):
+                research = AskNewsSearcher().get_formatted_news(question.question_text)
+            elif os.getenv("EXA_API_KEY"):
+                research = await self._call_exa_smart_searcher(question.question_text)
+            elif os.getenv("PERPLEXITY_API_KEY"):
+                research = await self._call_perplexity(question.question_text)
             if os.getenv("OPENROUTER_API_KEY"):
                 research = await self._call_perplexity(question.question_text, use_open_router=True)
             else:
                 research = ""
-            logger.info(f"Found Research for {question.page_url}:\n{research}")
-            return research
 
     async def _call_perplexity(self, question: str, use_open_router: bool = False) -> str:
         prompt = clean_indents(
@@ -130,8 +134,15 @@ class Q1TemplateBot(ForecastBot):
 
     def _get_final_decision_llm(self) -> GeneralLlm:
         model = None
-        if os.getenv("METACULUS_TOKEN"):
-            model = GeneralLlm(model="metaculus/gpt-4o", temperature=0.3)
+        if os.getenv("OPENAI_API_KEY"):
+            model = GeneralLlm(model="gpt-4o", temperature=0.3)
+        elif os.getenv("ANTHROPIC_API_KEY"):
+            model = GeneralLlm(model="claude-3-5-sonnet-20241022", temperature=0.3)
+        elif os.getenv("OPENROUTER_API_KEY"):
+            model = GeneralLlm(model="openrouter/openai/gpt-4o", temperature=0.3)
+        elif os.getenv("METACULUS_TOKEN"):
+            if os.getenv("METACULUS_TOKEN"):
+                model = GeneralLlm(model="metaculus/gpt-4o", temperature=0.3)
         else:
             raise ValueError("No API key for final_decision_llm found")
         return model
