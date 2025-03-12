@@ -82,6 +82,7 @@ class Q1TemplateBot(ForecastBot):
                 research = await self._call_perplexity(question.question_text, use_open_router=True)
             else:
                 research = ""
+            return research
 
     async def _call_perplexity(self, question: str, use_open_router: bool = False) -> str:
         prompt = clean_indents(
